@@ -276,3 +276,38 @@ FAILED tests/test_pricing_engine.py::test_calculate_booking_breakup[items3-festi
 1 failed, 5 passed in 0.04s
 
 cd /workspaces/Harshit-Sharma-15044/backend && . .venv/bin/activate && PYTHONPATH=. python -m pytest -q tests/test_pricing_engine.py
+
+
+docker compose up -d --build
+docker compose down
+docker compose down -v
+
+cd backend
+python3.12 -m venv .venv
+. .venv/bin/activate
+pip install -r requirements.txt
+
+export DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/multiplex
+
+PYTHONPATH=. python -m alembic upgrade head
+PYTHONPATH=. python -m scripts.seed
+PYTHONPATH=. uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+PYTHONPATH=. python -m alembic current
+PYTHONPATH=. python -m alembic downgrade -1
+PYTHONPATH=. python -m alembic revision --autogenerate -m "describe change"
+
+PYTHONPATH=. pytest -q
+PYTHONPATH=. pytest -q tests/test_pricing_engine.py
+PYTHONPATH=. pytest -q tests/test_seat_tier_import.py
+
+docker compose ps
+docker compose logs --no-color --tail=100 api
+docker compose logs --no-color --tail=100 db
+
+curl http://127.0.0.1:8000/health
+curl -I http://127.0.0.1:8000/dashboard
+curl http://127.0.0.1:8000/api/shows/1
+curl http://127.0.0.1:8000/api/bookings
+
+lsof -nP -iTCP:8000 -sTCP:LISTEN
