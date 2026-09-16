@@ -54,7 +54,7 @@ From the project root:
 docker compose up -d --build
 ```
 
-Open the application:
+I Open the application In my local System:
 
 - Main app: http://127.0.0.1:8000/login
 - Dashboard: http://127.0.0.1:8000/dashboard
