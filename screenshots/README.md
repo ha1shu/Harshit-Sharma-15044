@@ -7,12 +7,14 @@ The current container does not have the system libraries required by Chromium, s
 When browser dependencies are available, files should be grouped by page and viewport:
 
 - `login-*`
- 
+ <img width="1812" height="853" alt="image" src="https://github.com/user-attachments/assets/dd31e46d-a294-4620-a699-55e25685d78d" />
+
 - `Dashboard`
 <img width="1917" height="858" alt="image" src="https://github.com/user-attachments/assets/24c812e1-9727-4481-b825-967e2fc7a02c" />
 
 - `New Booking `
-![alt text](image-5.png)
+<img width="1868" height="867" alt="image" src="https://github.com/user-attachments/assets/258d4b81-6cf3-4378-9da9-89838e465f66" />
+
 - `Booking History`
 <img width="1917" height="826" alt="image" src="https://github.com/user-attachments/assets/99c606fe-5835-48fc-8399-0a7dd46ef543" />
 - `Admin`
