@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard | Multiplex</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="logo">MX</div>
+        <nav>
+          <a class="nav-link active" href="/dashboard">Dashboard</a>
+          <a class="nav-link" href="/booking">New Booking</a>
+          <a class="nav-link" href="/bookings-history">Booking History</a>
+          <a class="nav-link" href="/admin">Admin</a>
+          <a class="nav-link" href="/login">Logout</a>
+        </nav>
+      </aside>
+
+      <main class="content">
+        <header class="topbar">
+          <div>
+            <h1>Today’s Shows</h1>
+          </div>
+          <button onclick="window.location.href='/booking'" class="primary-btn">New Booking</button>
+        </header>
+
+        <div id="dashboardError" class="action-error" role="alert"></div>
+        <section class="stats-grid">
+          <div class="stat-card"><span>Shows</span><strong id="statShows">—</strong></div>
+          <div class="stat-card"><span>Tickets sold</span><strong id="statTickets">—</strong></div>
+          <div class="stat-card"><span>Revenue</span><strong id="statRevenue">—</strong></div>
+          <div class="stat-card"><span>Sold out tiers</span><strong id="statSoldOut">—</strong></div>
+        </section>
+        <section class="panel-grid">
+          <div class="panel"><h3>Show schedule</h3><div id="showList" class="show-list"><p class="loading-state">Loading shows…</p></div></div>
+          <div class="panel"><h3>Availability snapshot</h3><table class="mini-table"><thead><tr><th>Tier</th><th>Available</th></tr></thead><tbody id="availabilityRows"><tr><td colspan="2">Loading availability…</td></tr></tbody></table></div>
+        </section>
+      </main>
+    </div>
+    <script>
+      const money = (value) => `₹${Number(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      async function loadDashboard() {
+        try {
+          const response = await fetch('/api/dashboard');
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.detail || 'Could not load dashboard');
+          document.getElementById('statShows').textContent = String(data.stats.shows).padStart(2, '0');
+          document.getElementById('statTickets').textContent = data.stats.tickets_sold;
+          document.getElementById('statRevenue').textContent = money(data.stats.revenue);
+          document.getElementById('statSoldOut').textContent = data.stats.sold_out_tiers;
+          document.getElementById('showList').innerHTML = data.shows.map((show) => `<div class="show-item"><div><strong>${show.title}</strong><small>${show.screen} • ${new Date(show.show_datetime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</small></div><a class="link-btn" href="/booking?show=${show.id}">Book</a></div>`).join('') || '<p>No shows configured.</p>';
+          document.getElementById('availabilityRows').innerHTML = data.availability.map((tier) => { const state = tier.available_seats === 0 ? `<span class="status-tag sold">Sold out</span>` : tier.available_seats <= 20 ? `<span class="status-tag low">${tier.available_seats} left</span>` : `<span class="status-tag available">${tier.available_seats} available</span>`; return `<tr><td>${tier.tier_name}</td><td>${state}</td></tr>`; }).join('') || '<tr><td colspan="2">No tiers configured.</td></tr>';
+        } catch (error) { document.getElementById('dashboardError').textContent = error.message; }
+      }
+      loadDashboard();
+    </script>
+  </body>
+</html>

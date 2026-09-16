@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Booking | Multiplex</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar"><div class="logo">MX</div><nav><a class="nav-link" href="/dashboard">Dashboard</a><a class="nav-link active" href="/booking">New Booking</a><a class="nav-link" href="/bookings-history">Booking History</a><a class="nav-link" href="/admin">Admin</a><a class="nav-link" href="/login">Logout</a></nav></aside>
+      <main class="content">
+        <header class="topbar"><div><h1 id="showTitle">Loading show…</h1></div><span id="showMeta" class="time-tag">Loading…</span></header>
+        <div id="bookingError" class="action-error" role="alert"></div>
+        <section class="booking-layout">
+          <div class="booking-panel"><h3>Select seat tiers</h3><div id="tierGrid" class="tier-grid"><p class="loading-state">Loading seat availability…</p></div><div class="offer-box"><h3>Offers</h3><label class="toggle-row"><input type="checkbox" id="festivalDiscount" /><span>Festival discount (₹100 off)</span></label><label class="toggle-row"><input type="checkbox" id="memberDiscount" /><span>Member discount (10% capped at ₹150)</span></label><div class="member-field"><label>Membership ID</label><input type="text" id="memberId" placeholder="Enter member ID" /></div></div></div>
+          <aside class="bill-panel"><h3>Bill Breakup</h3><div class="bill-lines"><div class="bill-line"><span>Subtotal</span><strong id="bill-subtotal">₹0.00</strong></div><div class="bill-line"><span>Festival discount</span><strong id="bill-festival">₹0.00</strong></div><div class="bill-line"><span>Membership discount</span><strong id="bill-member">₹0.00</strong></div><div class="bill-line"><span>Convenience fee</span><strong id="bill-fee">₹0.00</strong></div><div class="bill-line"><span>CGST</span><strong id="bill-cgst">₹0.00</strong></div><div class="bill-line"><span>SGST</span><strong id="bill-sgst">₹0.00</strong></div><div class="bill-total"><span>Total</span><strong id="bill-grand">₹0.00</strong></div></div><form id="bookingForm"><button id="confirmBooking" type="submit" class="primary-btn wide" disabled>Confirm Booking</button></form></aside>
+        </section>
+      </main>
+    </div>
+    <script>
+      const showId = new URLSearchParams(window.location.search).get('show') || '1';
+      let show = null;
+      const quantities = {};
+      const money = (value) => `₹${Number(value).toFixed(2)}`;
+      const errorBox = document.getElementById('bookingError');
+      const confirmButton = document.getElementById('confirmBooking');
+      function setError(message) { errorBox.textContent = message || ''; }
+      function updateBill() {
+        if (!show) return;
+        const subtotal = show.tiers.reduce((sum, tier) => sum + (quantities[tier.tier_name] || 0) * Number(tier.price), 0);
+        const festival = document.getElementById('festivalDiscount').checked ? Math.min(100, subtotal) : 0;
+        const member = document.getElementById('memberDiscount').checked ? Math.min(Math.max(subtotal - festival, 0) * 0.10, 150) : 0;
+        const tickets = Object.values(quantities).reduce((sum, quantity) => sum + quantity, 0);
+        const fee = tickets * Number(show.tax.convenience_fee_per_ticket);
+        const taxable = Math.max(subtotal - festival - member, 0) + fee;
+        const cgst = taxable * (Number(show.tax.gst_rate) / 100 / 2);
+        const total = Math.max(subtotal - festival - member, 0) + fee + cgst * 2;
+        document.getElementById('bill-subtotal').textContent = money(subtotal);
+        document.getElementById('bill-festival').textContent = money(festival);
+        document.getElementById('bill-member').textContent = money(member);
+        document.getElementById('bill-fee').textContent = money(fee);
+        document.getElementById('bill-cgst').textContent = money(cgst);
+        document.getElementById('bill-sgst').textContent = money(cgst);
+        document.getElementById('bill-grand').textContent = money(total);
+        confirmButton.disabled = tickets === 0;
+      }
+      function renderTiers() {
+        const grid = document.getElementById('tierGrid');
+        grid.innerHTML = show.tiers.map((tier) => {
+          const soldOut = tier.available_seats === 0;
+          const low = tier.available_seats > 0 && tier.available_seats <= 20;
+          const state = soldOut ? '<span class="status-tag sold">Sold out</span>' : low ? `<span class="status-tag low">${tier.available_seats} left</span>` : `<span class="status-tag available">${tier.available_seats} available</span>`;
+          return `<div class="tier-card ${soldOut ? 'sold-out' : ''}"><div><strong>${tier.tier_name}</strong><small>${money(tier.price)} / seat</small>${state}</div><div class="tier-controls"><button type="button" class="qty-btn" data-action="minus" data-tier="${tier.tier_name}" ${soldOut ? 'disabled' : ''}>−</button><span class="qty-value" id="${tier.tier_name}-qty">0</span><button type="button" class="qty-btn" data-action="plus" data-tier="${tier.tier_name}" ${soldOut ? 'disabled' : ''}>+</button></div></div>`;
+        }).join('');
+        grid.querySelectorAll('.qty-btn').forEach((button) => button.addEventListener('click', () => {
+          const tier = show.tiers.find((item) => item.tier_name === button.dataset.tier);
+          const current = quantities[tier.tier_name] || 0;
+          quantities[tier.tier_name] = button.dataset.action === 'plus' ? Math.min(tier.available_seats, current + 1) : Math.max(0, current - 1);
+          document.getElementById(`${tier.tier_name}-qty`).textContent = quantities[tier.tier_name];
+          updateBill();
+        }));
+      }
+      async function loadShow() {
+        try {
+          const response = await fetch(`/api/shows/${showId}`);
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.detail || 'Could not load this show');
+          show = data;
+          document.getElementById('showTitle').textContent = data.title;
+          document.getElementById('showMeta').textContent = `${new Date(data.show_datetime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} • ${data.screen}`;
+          renderTiers();
+          updateBill();
+        } catch (error) { setError(error.message); }
+      }
+      document.getElementById('festivalDiscount').addEventListener('change', updateBill);
+      document.getElementById('memberDiscount').addEventListener('change', updateBill);
+      document.getElementById('bookingForm').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const items = show.tiers.filter((tier) => quantities[tier.tier_name] > 0).map((tier) => ({ tier_name: tier.tier_name, quantity: quantities[tier.tier_name] }));
+        confirmButton.disabled = true;
+        confirmButton.textContent = 'Saving booking…';
+        setError('');
+        try {
+          const response = await fetch('/api/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ show_id: Number(showId), items, member_id: document.getElementById('memberId').value, festival_discount: document.getElementById('festivalDiscount').checked ? '100' : '0', membership_percent: document.getElementById('memberDiscount').checked ? '10' : '0', membership_cap: '150' }) });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.detail || 'Booking could not be saved');
+          window.location.href = `/booking-confirmation?id=${data.id}`;
+        } catch (error) {
+          setError(error.message);
+          confirmButton.disabled = false;
+          confirmButton.textContent = 'Confirm Booking';
+        }
+      });
+      loadShow();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin | Multiplex</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="logo">MX</div>
+        <nav>
+          <a class="nav-link" href="/dashboard">Dashboard</a>
+          <a class="nav-link" href="/booking">New Booking</a>
+          <a class="nav-link" href="/bookings-history">Booking History</a>
+          <a class="nav-link active" href="/admin">Admin</a>
+          <a class="nav-link" href="/login">Logout</a>
+        </nav>
+      </aside>
+
+      <main class="content">
+        <header class="topbar">
+          <div>
+            <h1>Administration</h1>
+          </div>
+        </header>
+
+        <section class="admin-grid">
+          <div class="admin-card">
+            <h3>Cinema Setup</h3>
+            <form id="showForm" class="admin-form">
+              <label>Show ID<input id="showId" type="number" value="1" min="1" required /></label>
+              <label>Cinema name<input id="cinemaName" type="text" value="Cityplex Cinema" required /></label>
+              <label>Screen<input id="screenName" type="text" value="Screen 1" required /></label>
+              <label>Show time<input id="showDatetime" type="datetime-local" required /></label>
+              <label>Movie title<input id="movieTitle" type="text" value="Midnight Echo" required /></label>
+              <button id="saveShow" type="submit" class="primary-btn">Save Show</button>
+            </form>
+          </div>
+
+          <div class="admin-card">
+            <h3>Tier Pricing</h3>
+            <form id="tiersForm" class="admin-form">
+              <label>Silver price<input id="silverPrice" type="text" value="120" required /></label>
+              <label>Gold price<input id="goldPrice" type="text" value="220" required /></label>
+              <label>Recliner price<input id="reclinerPrice" type="text" value="380" required /></label>
+              <button id="updateTiers" type="submit" class="primary-btn">Update Tiers</button>
+            </form>
+          </div>
+
+          <div class="admin-card wide">
+            <h3>Offers</h3>
+            <form id="offersForm" class="admin-form horizontal">
+              <label>Festival discount<input id="festivalOffer" type="text" value="100" required /></label>
+              <label>Membership %<input id="membershipOffer" type="text" value="10" required /></label>
+              <label>Cap<input id="membershipCap" type="text" value="150" required /></label>
+              <button id="saveOffers" type="submit" class="primary-btn">Save Offers</button>
+            </form>
+          </div>
+
+          <div class="admin-card wide import-card">
+            <div class="import-heading">
+              <div>
+                <h3>Import seat-tier prices</h3>
+                <p class="form-note">Upload a CSV with <strong>tier_name</strong> and <strong>price</strong>. Nothing changes until you confirm the report.</p>
+              </div>
+              <span class="status-tag available">Preview first</span>
+            </div>
+            <form id="tierImportForm" class="admin-form import-form">
+              <label>Show ID<input id="importShowId" type="number" min="1" value="1" required /></label>
+              <label>CSV file<input id="tierCsv" type="file" accept=".csv,text/csv" required /></label>
+              <button type="submit" class="primary-btn">Preview import</button>
+            </form>
+            <div id="importMessage" class="import-message" role="status" aria-live="polite"></div>
+            <section id="importReport" class="import-report" hidden>
+              <div class="report-section">
+                <h4>Will import</h4>
+                <ul id="importedRows"></ul>
+              </div>
+              <div class="report-section">
+                <h4>De-duplicated</h4>
+                <ul id="deduplicatedRows"></ul>
+              </div>
+              <div class="report-section">
+                <h4>Rejected</h4>
+                <ul id="rejectedRows"></ul>
+              </div>
+              <label class="confirm-import"><input id="confirmImport" type="checkbox" /> I reviewed this report and want to apply these prices.</label>
+              <button id="applyImport" type="button" class="primary-btn" disabled>Apply prices</button>
+            </section>
+          </div>
+        </section>
+        <div id="adminMessage" class="action-message" role="status" aria-live="polite"></div>
+      </main>
+    </div>
+    <script>
+      const importForm = document.getElementById('tierImportForm');
+      const importReport = document.getElementById('importReport');
+      const importMessage = document.getElementById('importMessage');
+      const confirmImport = document.getElementById('confirmImport');
+      const applyImport = document.getElementById('applyImport');
+      let latestReport = null;
+
+      function renderList(elementId, rows, formatter, emptyText) {
+        const element = document.getElementById(elementId);
+        element.innerHTML = rows.length ? rows.map((row) => `<li>${formatter(row)}</li>`).join('') : `<li class="empty-report">${emptyText}</li>`;
+      }
+
+      function updateApplyState() {
+        applyImport.disabled = !latestReport || !confirmImport.checked;
+      }
+
+      importForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const file = document.getElementById('tierCsv').files[0];
+        const showId = document.getElementById('importShowId').value;
+        if (!file) return;
+        const formData = new FormData();
+        formData.append('file', file);
+        importMessage.textContent = 'Reading CSV…';
+        const previewButton = importForm.querySelector('button[type="submit"]');
+        previewButton.disabled = true;
+        previewButton.textContent = 'Reading…';
+        importReport.hidden = true;
+        latestReport = null;
+        updateApplyState();
+        try {
+          const response = await fetch(`/api/admin/shows/${showId}/seat-tiers/import/preview`, { method: 'POST', body: formData });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.detail || 'Could not preview this CSV.');
+          latestReport = data;
+          importMessage.textContent = 'Review the report below. The database has not changed.';
+          renderList('importedRows', data.imported, (row) => `<strong>${row.tier_name}</strong> · ₹${row.price} <small>(row ${row.row_number})</small>`, 'No valid rows to import.');
+          renderList('deduplicatedRows', data.deduplicated, (row) => `<strong>${row.tier_name}</strong> · row ${row.discarded_row} (₹${row.discarded_price}) → row ${row.winning_row} wins (₹${row.winning_price})`, 'No duplicates found.');
+          renderList('rejectedRows', data.rejected, (row) => `<strong>Row ${row.row_number}</strong> · ${row.tier_name || 'Unnamed tier'} · ${row.reason}`, 'No rejected rows.');
+          confirmImport.checked = false;
+          importReport.hidden = false;
+        } catch (error) {
+          importMessage.textContent = error.message;
+        } finally {
+          previewButton.disabled = false;
+          previewButton.textContent = 'Preview import';
+        }
+      });
+
+      confirmImport.addEventListener('change', updateApplyState);
+      applyImport.addEventListener('click', async () => {
+        const file = document.getElementById('tierCsv').files[0];
+        const showId = document.getElementById('importShowId').value;
+        const formData = new FormData();
+        formData.append('file', file);
+        applyImport.disabled = true;
+        applyImport.textContent = 'Applying…';
+        try {
+          const response = await fetch(`/api/admin/shows/${showId}/seat-tiers/import/apply?confirm=true`, { method: 'POST', body: formData });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.detail || 'Could not apply this import.');
+          importMessage.textContent = `Applied ${data.updated_count} tier price(s) for show ${showId}.`;
+          importReport.hidden = true;
+          latestReport = null;
+        } catch (error) {
+          importMessage.textContent = error.message;
+        } finally {
+          applyImport.textContent = 'Apply prices';
+          updateApplyState();
+        }
+      });
+
+      const adminMessage = document.getElementById('adminMessage');
+      const showIdInput = document.getElementById('showId');
+      async function adminRequest(button, url, options, successMessage) {
+        button.disabled = true;
+        const original = button.textContent;
+        button.textContent = 'Saving…';
+        adminMessage.className = 'action-message';
+        adminMessage.textContent = '';
+        try {
+          const response = await fetch(url, options);
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.detail || 'Request failed');
+          adminMessage.className = 'action-message success-message';
+          adminMessage.textContent = successMessage;
+        } catch (error) {
+          adminMessage.className = 'action-message error-message';
+          adminMessage.textContent = error.message;
+        } finally {
+          button.disabled = false;
+          button.textContent = original;
+        }
+      }
+
+      fetch(`/api/shows/${showIdInput.value}`).then((response) => response.json()).then((data) => {
+        if (!data.id) return;
+        document.getElementById('movieTitle').value = data.title;
+        document.getElementById('screenName').value = data.screen;
+        document.getElementById('showDatetime').value = data.show_datetime.slice(0, 16);
+        const prices = Object.fromEntries(data.tiers.map((tier) => [tier.tier_name.toLowerCase(), tier.price]));
+        if (prices.silver) document.getElementById('silverPrice').value = prices.silver;
+        if (prices.gold) document.getElementById('goldPrice').value = prices.gold;
+        if (prices.recliner) document.getElementById('reclinerPrice').value = prices.recliner;
+      }).catch(() => {});
+
+      document.getElementById('showForm').addEventListener('submit', (event) => {
+        event.preventDefault();
+        adminRequest(document.getElementById('saveShow'), `/api/admin/shows/${showIdInput.value}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cinema_name: document.getElementById('cinemaName').value, screen_name: document.getElementById('screenName').value, movie_title: document.getElementById('movieTitle').value, show_datetime: document.getElementById('showDatetime').value }) }, 'Show saved.');
+      });
+      document.getElementById('tiersForm').addEventListener('submit', (event) => {
+        event.preventDefault();
+        adminRequest(document.getElementById('updateTiers'), `/api/admin/shows/${showIdInput.value}/tiers`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tiers: [{ tier_name: 'Silver', price: document.getElementById('silverPrice').value }, { tier_name: 'Gold', price: document.getElementById('goldPrice').value }, { tier_name: 'Recliner', price: document.getElementById('reclinerPrice').value }] }) }, 'Tier prices updated.');
+      });
+      document.getElementById('offersForm').addEventListener('submit', (event) => {
+        event.preventDefault();
+        adminRequest(document.getElementById('saveOffers'), '/api/admin/offers', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ festival_discount: document.getElementById('festivalOffer').value, membership_percent: document.getElementById('membershipOffer').value, membership_cap: document.getElementById('membershipCap').value }) }, 'Offers saved.');
+      });
+    </script>
+  </body>
+</html>

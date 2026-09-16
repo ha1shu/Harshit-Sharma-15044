@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Booking History | Multiplex</title><link rel="stylesheet" href="/static/styles.css" /></head>
+  <body>
+    <div class="app-shell"><aside class="sidebar"><div class="logo">MX</div><nav><a class="nav-link" href="/dashboard">Dashboard</a><a class="nav-link" href="/booking">New Booking</a><a class="nav-link active" href="/bookings-history">Booking History</a><a class="nav-link" href="/admin">Admin</a><a class="nav-link" href="/login">Logout</a></nav></aside>
+      <main class="content"><header class="topbar"><div><h1>Booking History</h1></div><button class="primary-btn" onclick="window.location.href='/booking'">Create Booking</button></header><div id="historyError" class="action-error" role="alert"></div><div class="history-table-wrap"><table class="history-table"><thead><tr><th>Booking ID</th><th>Show</th><th>Tier</th><th>Total</th><th>Status</th></tr></thead><tbody id="historyRows"><tr><td colspan="5">Loading bookings…</td></tr></tbody></table></div></main>
+    </div>
+    <script>
+      const money = (value) => `₹${Number(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      async function loadHistory() {
+        try {
+          const response = await fetch('/api/bookings');
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.detail || 'Could not load booking history');
+          document.getElementById('historyRows').innerHTML = data.bookings.map((booking) => `<tr><td><a class="link-btn" href="/booking-confirmation?id=${booking.id}">${booking.reference}</a></td><td>${booking.show}</td><td>${booking.items.map((item) => `${item.tier_name} × ${item.quantity}`).join(', ')}</td><td>${money(booking.grand_total)}</td><td><span class="status-pill ${booking.status.toLowerCase()}">${booking.status}</span></td></tr>`).join('') || '<tr><td colspan="5">No bookings yet.</td></tr>';
+        } catch (error) { document.getElementById('historyError').textContent = error.message; }
+      }
+      loadHistory();
+    </script>
+  </body>
+</html>

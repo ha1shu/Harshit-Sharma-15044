@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login | Multiplex</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body class="auth-bg">
+    <div class="auth-shell">
+      <div class="brand-panel">
+        <div class="brand-badge">MX</div>
+        <h1>Multiplex Ticket Pricing Engine</h1>
+        <p>Counter staff portal for bookings, offers, and invoice accuracy.</p>
+      </div>
+
+      <div class="auth-card">
+        <h2>Staff Login</h2>
+        <form id="loginForm">
+          <label>
+            Username
+            <input type="text" name="username" value="staff" required />
+          </label>
+          <label>
+            Password
+            <input type="password" name="password" value="admin123" required />
+          </label>
+          <button id="loginButton" type="submit" class="primary-btn">Login</button>
+        </form>
+        <p id="loginError" class="helper-text error-message"></p>
+      </div>
+    </div>
+
+    <script>
+      document.getElementById('loginForm').addEventListener('submit', async function (event) {
+        event.preventDefault();
+        const form = new FormData(event.target);
+        const payload = {
+          username: form.get('username'),
+          password: form.get('password')
+        };
+
+        const button = document.getElementById('loginButton');
+        const error = document.getElementById('loginError');
+        button.disabled = true;
+        button.textContent = 'Signing in…';
+        error.textContent = '';
+        try {
+          const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+          });
+
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.detail || 'Login failed');
+
+          localStorage.setItem('mx_token', data.token);
+          window.location.href = '/dashboard';
+        } catch (requestError) {
+          error.textContent = requestError.message;
+          button.disabled = false;
+          button.textContent = 'Login';
+        }
+      });
+    </script>
+  </body>
+</html>

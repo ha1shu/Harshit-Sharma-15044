@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Booking Confirmation | Multiplex</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="confirmation-shell">
+      <div class="confirmation-card">
+        <div class="success-icon">✓</div>
+        <h1 id="confirmationTitle">Loading booking…</h1>
+        <p id="confirmationMeta"></p>
+        <div id="invoiceBox" class="invoice-box">
+          <p class="loading-state">Loading invoice…</p>
+        </div>
+        <div id="confirmationError" class="action-error" role="alert"></div>
+        <div class="actions-row">
+          <a class="primary-btn" href="/dashboard">Back to Dashboard</a>
+          <a class="secondary-btn" href="/bookings-history">View History</a>
+        </div>
+      </div>
+    </div>
+    <script>
+      const bookingId = new URLSearchParams(window.location.search).get('id');
+      const money = (value) => `₹${Number(value).toFixed(2)}`;
+      async function loadInvoice() {
+        try {
+          if (!bookingId) throw new Error('No booking was selected');
+          const response = await fetch(`/api/bookings/${bookingId}`);
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.detail || 'Could not load invoice');
+          document.getElementById('confirmationTitle').textContent = 'Booking Confirmed';
+          document.getElementById('confirmationMeta').textContent = `${data.reference} · ${data.show} · ${data.screen}`;
+          document.getElementById('invoiceBox').innerHTML = [...data.items.map((item) => `<div class="invoice-row"><span>${item.tier_name} × ${item.quantity}</span><strong>${money(item.line_total)}</strong></div>`), `<div class="invoice-row"><span>Discount</span><strong>-${money(data.total_discount)}</strong></div>`, `<div class="invoice-row"><span>Convenience fee</span><strong>${money(data.convenience_fee)}</strong></div>`, `<div class="invoice-row"><span>CGST</span><strong>${money(data.cgst)}</strong></div>`, `<div class="invoice-row"><span>SGST</span><strong>${money(data.sgst)}</strong></div>`, `<div class="invoice-total"><span>Total</span><strong>${money(data.grand_total)}</strong></div>`].join('');
+        } catch (error) { document.getElementById('confirmationError').textContent = error.message; }
+      }
+      loadInvoice();
+    </script>
+  </body>
+</html>
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Booking Confirmation | Multiplex</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="confirmation-shell">
+      <div class="confirmation-card">
+        <div class="success-icon">✓</div>
+        <h1>Booking Confirmed</h1>
+        <p>Reservation ID: <strong>MX-48591</strong></p>
+        <p>Show: Avatar: Fire & Ash • Screen 1 • 12:30 PM</p>
+
+        <div class="invoice-box">
+          <div class="invoice-row"><span>Silver x 2</span><strong>₹240.00</strong></div>
+          <div class="invoice-row"><span>Festival discount</span><strong>-₹100.00</strong></div>
+          <div class="invoice-row"><span>Membership discount</span><strong>-₹15.00</strong></div>
+          <div class="invoice-row"><span>Convenience fee</span><strong>₹40.00</strong></div>
+          <div class="invoice-row"><span>CGST</span><strong>₹19.53</strong></div>
+          <div class="invoice-row"><span>SGST</span><strong>₹19.53</strong></div>
+          <div class="invoice-total"><span>Total</span><strong>₹203.06</strong></div>
+        </div>
+
+        <div class="actions-row">
+          <a class="primary-btn" href="/dashboard">Back to Dashboard</a>
+          <a class="secondary-btn" href="/bookings-history">View History</a>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
