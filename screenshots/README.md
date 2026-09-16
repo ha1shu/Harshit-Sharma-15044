@@ -7,17 +7,20 @@ The current container does not have the system libraries required by Chromium, s
 When browser dependencies are available, files should be grouped by page and viewport:
 
 - `login-*`
-  ![alt text](image.png)
+ 
 - `Dashboard`
-![alt text](image-1.png)
+<img width="1917" height="858" alt="image" src="https://github.com/user-attachments/assets/24c812e1-9727-4481-b825-967e2fc7a02c" />
+
 - `New Booking `
 ![alt text](image-5.png)
 - `Booking History`
-![alt text](image-3.png)
+<img width="1917" height="826" alt="image" src="https://github.com/user-attachments/assets/99c606fe-5835-48fc-8399-0a7dd46ef543" />
 - `Admin`
-![alt text](image-4.png)
+<img width="1912" height="901" alt="image" src="https://github.com/user-attachments/assets/378e5316-cabf-497d-9ae1-e0a58691ba54" />
+
 - `Booking Confirmation`
-![alt text](image-6.png)`
+<img width="1366" height="863" alt="image" src="https://github.com/user-attachments/assets/b0ba3c4b-ff41-4dc3-b97c-de4a240b7dc5" />
+
 
 Desktop images use a 1440px viewport. Mobile images use a 390px viewport.
 
